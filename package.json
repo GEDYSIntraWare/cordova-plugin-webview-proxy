@@ -1,0 +1,32 @@
+{
+  "name": "cordova-plugin-webview-proxy",
+  "version": "0.0.1",
+  "description": "Switch wenbview implementation",
+  "cordova": {
+    "id": "cordova-plugin-webview-proxy",
+    "platforms": [
+      "ios"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GEDYSIntraWare/cordova-plugin-webview-proxy.git"
+  },
+  "keywords": [
+    "ecosystem:cordova",
+    "cordova-ios",
+    "cordova",
+    "webview",
+    "wkwebview",
+    "ios"
+  ],
+  "scripts": {
+    "test": "paramedic.."
+  },
+  "author": "GEDYS IntraWare GmbH",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/GEDYSIntraWare/cordova-plugin-webview-proxy/issues"
+  },
+  "homepage": "https://github.com/GEDYSIntraWare/cordova-plugin-webview-proxy"
+}

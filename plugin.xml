@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    id="cordova-plugin-webview-proxy"
+    version="0.0.1">
+
+    <name>cordova-plugin-webview-proxy</name>
+    <author>GEDYS IntraWare GmbH</author>
+	<description>Plugin to proxy requests on iOS</description>
+    <license>MIT</license>
+    <engines>
+        <engine name="cordova-ios" version=">=4.5.5" />
+    </engines>
+    <repo>https://github.com/GEDYSIntraWare/cordova-plugin-webview-proxy.git</repo>
+    <issue>https://github.com/GEDYSIntraWare/cordova-plugin-webview-proxy/issues</issue>
+    <keywords>cordova,webview,wkwebview,ios</keywords>
+
+    <js-module src="www/WebviewProxy.js" name="WebviewProxy">
+        <clobbers target="WebviewProxy"/>
+    </js-module>
+
+    <!-- ios -->
+    <platform name="ios">
+        <config-file target="config.xml" parent="/*">
+            <feature name="WebviewProxy">
+                <param name="ios-package" value="WebviewProxy" />
+                <param name="onload" value="true" />
+            </feature>
+        </config-file>
+        <source-file src="src/ios/WebviewProxy.m" />
+    </platform>
+</plugin>
