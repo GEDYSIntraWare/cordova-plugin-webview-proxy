@@ -96,7 +96,4 @@
     [self.stoppedTasks addObject:urlSchemeTask];
 }
 
-- (void) load:(CDVInvokedUrlCommand*)command {
-    NSLog(@"dummy");
-}
 @end
