@@ -6,15 +6,18 @@
     
 }
 
-// TODO cancel running
-@property (nonatomic) Boolean isRunning;
+@property (nonatomic) NSMutableArray* stoppedTasks;
 
 @end
 
 @implementation WebviewProxy
 
-- (BOOL) handleSchemeURL: (id <WKURLSchemeTask>)urlSchemeTask {
-    self.isRunning = true;
+- (void) pluginInitialize {
+    NSLog(@"Proxy active on /_https_proxy and /_http_proxy_");
+    self.stoppedTasks = [[NSMutableArray alloc] init];
+}
+
+- (BOOL) overrideSchemeTask: (id <WKURLSchemeTask>)urlSchemeTask {
     NSString * startPath = @"";
     NSURL * url = urlSchemeTask.request.URL;
     NSDictionary * header = urlSchemeTask.request.allHTTPHeaderFields;
@@ -29,7 +32,6 @@
             [stringToLoad appendString:url.query];
         }                startPath = [stringToLoad stringByReplacingOccurrencesOfString:@"/_http_proxy_" withString:@"http://"];
         startPath = [startPath stringByReplacingOccurrencesOfString:@"/_https_proxy_" withString:@"https://"];
-        NSLog(@"Proxy %@", startPath);
         NSURL * requestUrl = [NSURL URLWithString:startPath];
         WKWebsiteDataStore* dataStore = [WKWebsiteDataStore defaultDataStore];
         WKHTTPCookieStore* cookieStore = dataStore.httpCookieStore;
@@ -43,7 +45,7 @@
         [request setHTTPShouldHandleCookies:YES];
         
         [[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-            if(error) {
+            if(error && (self.stoppedTasks == nil || ![self.stoppedTasks containsObject:urlSchemeTask])) {
                 NSLog(@"Proxy error: %@", error);
                 [urlSchemeTask didFailWithError:error];
                 return;
@@ -68,10 +70,19 @@
             }
             
             // Do not use urlSchemeTask if it has been closed in stopURLSchemeTask. Otherwise the app will crash.
-            if(self.isRunning) {
-                [urlSchemeTask didReceiveResponse:response];
-                [urlSchemeTask didReceiveData:data];
-                [urlSchemeTask didFinish];
+            @try {
+                if(self.stoppedTasks == nil || ![self.stoppedTasks containsObject:urlSchemeTask]) {
+                    [urlSchemeTask didReceiveResponse:response];
+                    [urlSchemeTask didReceiveData:data];
+                    [urlSchemeTask didFinish];
+                } else {
+                    NSLog(@"Task stopped %@", startPath);
+                }
+            } @catch (NSException *exception) {
+                NSLog(@"WebViewProxy error: %@", exception.debugDescription);
+            } @finally {
+                // Cleanup
+                [self.stoppedTasks removeObject:urlSchemeTask];
             }
         }] resume];
         return  YES;
@@ -80,8 +91,9 @@
     return NO;
 }
 
-- (void) pluginInitialize {
-    NSLog(@"Proxy active on /_https_proxy");
+- (void) stopSchemeTask: (id <WKURLSchemeTask>)urlSchemeTask {
+    NSLog(@"Stop WevViewProxy %@", urlSchemeTask.debugDescription);
+    [self.stoppedTasks addObject:urlSchemeTask];
 }
 
 - (void) load:(CDVInvokedUrlCommand*)command {
