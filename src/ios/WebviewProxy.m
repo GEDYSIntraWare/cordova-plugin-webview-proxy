@@ -46,9 +46,13 @@
         
         [[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
             if(error && (self.stoppedTasks == nil || ![self.stoppedTasks containsObject:urlSchemeTask])) {
-                NSLog(@"Proxy error: %@", error);
-                [urlSchemeTask didFailWithError:error];
-                return;
+                @try {
+                    NSLog(@"WebviewProxy error: %@", error);
+                    [urlSchemeTask didFailWithError:error];
+                    return;
+                } @catch (NSException *exception) {
+                    NSLog(@"WebViewProxy send error exception: %@", exception.debugDescription);
+                }
             }
             
             // set cookies to WKWebView
@@ -79,7 +83,7 @@
                     NSLog(@"Task stopped %@", startPath);
                 }
             } @catch (NSException *exception) {
-                NSLog(@"WebViewProxy error: %@", exception.debugDescription);
+                NSLog(@"WebViewProxy send response exception: %@", exception.debugDescription);
             } @finally {
                 // Cleanup
                 [self.stoppedTasks removeObject:urlSchemeTask];
