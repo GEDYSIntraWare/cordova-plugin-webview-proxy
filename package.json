@@ -1,6 +1,6 @@
 {
   "name": "cordova-plugin-webview-proxy",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Switch wenbview implementation",
   "cordova": {
     "id": "cordova-plugin-webview-proxy",
