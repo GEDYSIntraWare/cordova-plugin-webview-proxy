@@ -5,7 +5,8 @@
   "cordova": {
     "id": "cordova-plugin-webview-proxy",
     "platforms": [
-      "ios"
+      "ios",
+      "android"
     ]
   },
   "repository": {
@@ -18,7 +19,8 @@
     "cordova",
     "webview",
     "wkwebview",
-    "ios"
+    "ios",
+    "android"
   ],
   "scripts": {
     "test": "paramedic.."
