@@ -42,14 +42,14 @@ public class WebviewProxy extends CordovaPlugin  {
       @Override
       public WebResourceResponse handle(String path) {
         try {
-          URL url = new URL(path.replace("/_https_proxy_/", "https://"));
+          URL url = new URL("https://" + path);
           HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
           try {
             InputStream in = new BufferedInputStream(urlConnection.getInputStream());
             String mimeType = urlConnection.getContentType();
             return new WebResourceResponse(mimeType, null, in);
           } finally {
-            urlConnection.disconnect();
+            //urlConnection.disconnect();
           }
         } catch(Exception e) {
           Log.e("WebviewProxy", e.getMessage());
