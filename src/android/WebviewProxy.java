@@ -41,25 +41,27 @@ public class WebviewProxy extends CordovaPlugin  {
     WebViewAssetLoader.PathHandler pathHandler = new WebViewAssetLoader.PathHandler() {
       @Override
       public WebResourceResponse handle(String path) {
-        try {
-          URL url = new URL("https://" + path);
-          HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+        if (path.startsWith("_https_proxy_/")) {
           try {
-            InputStream in = new BufferedInputStream(urlConnection.getInputStream());
-            String mimeType = urlConnection.getContentType();
-            return new WebResourceResponse(mimeType, null, in);
-          } finally {
-            //urlConnection.disconnect();
+            URL url = new URL(path.replace("_https_proxy_/", "https://"));
+            HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+            try {
+              InputStream in = new BufferedInputStream(urlConnection.getInputStream());
+              String mimeType = urlConnection.getContentType();
+              return new WebResourceResponse(mimeType, null, in);
+            } finally {
+              //urlConnection.disconnect();
+            }
+          } catch(Exception e) {
+            Log.e("WebviewProxy", e.getMessage());
           }
-        } catch(Exception e) {
-          Log.e("WebviewProxy", e.getMessage());
         }
         return null;
       }
     };
 
     Log.d("WebviewProxy", "Add proxy");
-    return new CordovaPluginPathHandler("/_https_proxy_/", pathHandler);
+    return new CordovaPluginPathHandler(pathHandler);
   }
 
 }
