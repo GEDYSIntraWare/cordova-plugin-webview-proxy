@@ -43,6 +43,7 @@
         }
         [request setAllHTTPHeaderFields:header];
         [request setHTTPShouldHandleCookies:YES];
+        [request setTimeoutInterval:1800];
         
         [[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
             if(error && (self.stoppedTasks == nil || ![self.stoppedTasks containsObject:urlSchemeTask])) {
