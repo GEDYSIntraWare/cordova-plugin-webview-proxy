@@ -1,7 +1,7 @@
 {
   "name": "cordova-plugin-webview-proxy",
   "version": "0.0.2",
-  "description": "Switch wenbview implementation",
+  "description": "Proxy HTTP(S) requests through native code to make CORS and Cookies work in cordova-ios",
   "cordova": {
     "id": "cordova-plugin-webview-proxy",
     "platforms": [
