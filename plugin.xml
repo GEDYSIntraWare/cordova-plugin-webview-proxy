@@ -2,14 +2,14 @@
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="cordova-plugin-webview-proxy"
-    version="0.0.1">
+    version="0.0.3">
 
     <name>cordova-plugin-webview-proxy</name>
     <author>GEDYS IntraWare GmbH</author>
-	<description>Plugin to proxy requests on iOS</description>
+	<description>Proxy HTTP(S) requests through native code to make CORS and Cookies work in cordova-ios</description>
     <license>MIT</license>
     <engines>
-        <engine name="cordova-ios" version=">=4.5.5" />
+        <engine name="cordova-ios" version=">=6.2.0" />
     </engines>
     <repo>https://github.com/GEDYSIntraWare/cordova-plugin-webview-proxy.git</repo>
     <issue>https://github.com/GEDYSIntraWare/cordova-plugin-webview-proxy/issues</issue>
