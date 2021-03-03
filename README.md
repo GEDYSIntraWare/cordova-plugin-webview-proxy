@@ -12,4 +12,6 @@ const response = await fetch(window.WebviewProxy.convertProxyUrl(url));
 console.debug(response);
 ```
 
-This plugin uses the WKURLSchemeHandler provided by WKWebView. It requires a Work in Progress Integration in cordova-ios: https://github.com/apache/cordova-ios/pull/1030
+**Make sure you are using a custom scheme with your iOS platform**
+
+This plugin uses the WKURLSchemeHandler provided by WKWebView. It requires the latest version of cordova-ios.
