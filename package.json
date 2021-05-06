@@ -1,7 +1,7 @@
 {
   "name": "cordova-plugin-webview-proxy",
-  "version": "0.0.3",
-  "description": "Proxy HTTP(S) requests through native code to make CORS and Cookies work in cordova-ios",
+  "version": "1.0.0",
+  "description": "Proxy HTTP(S) requests through native code to make CORS and Cookies work",
   "cordova": {
     "id": "cordova-plugin-webview-proxy",
     "platforms": [

@@ -2,11 +2,11 @@
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="cordova-plugin-webview-proxy"
-    version="0.0.3">
+    version="1.0.0">
 
     <name>cordova-plugin-webview-proxy</name>
     <author>GEDYS IntraWare GmbH</author>
-	<description>Proxy HTTP(S) requests through native code to make CORS and Cookies work in cordova-ios</description>
+	<description>Proxy HTTP(S) requests through native code to make CORS and Cookies work</description>
     <license>MIT</license>
     <engines>
         <engine name="cordova-ios" version=">=6.2.0" />
