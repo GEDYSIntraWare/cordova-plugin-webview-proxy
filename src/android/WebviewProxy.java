@@ -3,8 +3,6 @@ package com.gi.cordova.plugin.webviewproxy;
 import android.util.Log;
 import android.webkit.WebResourceResponse;
 
-import com.nordnetab.cordova.ul.parser.ULConfigXmlParser;
-
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaPlugin;
@@ -41,9 +39,9 @@ public class WebviewProxy extends CordovaPlugin  {
     WebViewAssetLoader.PathHandler pathHandler = new WebViewAssetLoader.PathHandler() {
       @Override
       public WebResourceResponse handle(String path) {
-        if (path.startsWith("_https_proxy_/")) {
+        if (path.startsWith("_https_proxy_")) {
           try {
-            URL url = new URL(path.replace("_https_proxy_/", "https://"));
+            URL url = new URL(path.replace("_https_proxy_", "https://"));
             HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
             try {
               InputStream in = new BufferedInputStream(urlConnection.getInputStream());
