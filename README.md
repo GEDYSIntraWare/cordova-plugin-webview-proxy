@@ -12,6 +12,11 @@ const response = await fetch(window.WebviewProxy.convertProxyUrl(url));
 console.debug(response);
 ```
 
+#### To delete all Cookies use this:
+```javascript
+window.WebviewProxy.clearCookie();
+```
+
 **Make sure you are using a custom scheme with your iOS platform**
 
 This plugin uses the WKURLSchemeHandler provided by WKWebView. It requires the latest version of cordova-ios.

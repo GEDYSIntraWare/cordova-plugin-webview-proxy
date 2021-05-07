@@ -16,4 +16,8 @@ WebviewProxy.prototype.convertProxyUrl = function (path) {
   return path;
 }
 
+WebviewProxy.prototype.clearCookie = function (successCallback, errorCallback) {
+    cordova.exec(successCallback, errorCallback, "WebviewProxy", "clearCookie", []);
+}
+
 module.exports = new WebviewProxy();

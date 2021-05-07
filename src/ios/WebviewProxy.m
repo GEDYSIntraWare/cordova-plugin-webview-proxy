@@ -8,6 +8,8 @@
 
 @property (nonatomic) NSMutableArray* stoppedTasks;
 
+- (void)clearCookie:(CDVInvokedUrlCommand*)command;
+
 @end
 
 @implementation WebviewProxy
@@ -99,6 +101,21 @@
 - (void) stopSchemeTask: (id <WKURLSchemeTask>)urlSchemeTask {
     NSLog(@"Stop WevViewProxy %@", urlSchemeTask.debugDescription);
     [self.stoppedTasks addObject:urlSchemeTask];
+}
+
+- (void) clearCookie:(CDVInvokedUrlCommand*)command {
+    CDVPluginResult* pluginResult = nil;
+
+    WKWebsiteDataStore* dataStore = [WKWebsiteDataStore defaultDataStore];
+    WKHTTPCookieStore* cookieStore = dataStore.httpCookieStore;
+    [cookieStore getAllCookies:^(NSArray<NSHTTPCookie *> * cookies) {
+        for (NSHTTPCookie* _c in cookies)
+        {
+            [cookieStore deleteCookie:_c completionHandler:nil];
+        };
+    }];
+
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
 @end
