@@ -215,23 +215,26 @@
     WKWebsiteDataStore* dataStore = [WKWebsiteDataStore defaultDataStore];
     WKHTTPCookieStore* cookieStore = dataStore.httpCookieStore;
     
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+    
     [cookieStore getAllCookies:^(NSArray<NSHTTPCookie *> * cookies) {
         if ([cookies count] == 0) {
             NSLog(@"no cookies to be removed");
-        }
-        dispatch_group_t group = dispatch_group_create();
-        for (NSHTTPCookie* _c in cookies)
-        {
-            dispatch_group_enter(group);
-            [cookieStore deleteCookie:_c completionHandler:^{
-                NSLog(@"removed cookie %@:%@:%@ from defaultDataStore", _c.domain, _c.name, _c.value);
-                dispatch_group_leave(group);
-            }];
-        };
-        dispatch_group_notify(group, dispatch_get_main_queue(), ^{
-            CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
             [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-        });
+        } else {
+            dispatch_group_t group = dispatch_group_create();
+            for (NSHTTPCookie* _c in cookies)
+            {
+                dispatch_group_enter(group);
+                [cookieStore deleteCookie:_c completionHandler:^{
+                    NSLog(@"removed cookie %@:%@:%@ from defaultDataStore", _c.domain, _c.name, _c.value);
+                    dispatch_group_leave(group);
+                }];
+            };
+            dispatch_group_notify(group, dispatch_get_main_queue(), ^{
+                [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+            });
+        }
     }];
 }
 
