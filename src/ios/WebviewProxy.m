@@ -8,7 +8,9 @@
 
 @property (nonatomic) NSMutableArray* stoppedTasks;
 
-- (void)clearCookie:(CDVInvokedUrlCommand*)command;
+- (void)clearCookies:(CDVInvokedUrlCommand*)command;
+- (void)setCookie:(CDVInvokedUrlCommand*)command;
+- (void)deleteCookie:(CDVInvokedUrlCommand*)command;
 
 @end
 
@@ -22,7 +24,6 @@
 - (BOOL) overrideSchemeTask: (id <WKURLSchemeTask>)urlSchemeTask {
     NSString * startPath = @"";
     NSURL * url = urlSchemeTask.request.URL;
-    NSDictionary * header = urlSchemeTask.request.allHTTPHeaderFields;
     NSMutableString * stringToLoad = [NSMutableString string];
     [stringToLoad appendString:url.path];
     NSString * method = urlSchemeTask.request.HTTPMethod;
@@ -37,14 +38,22 @@
         NSURL * requestUrl = [NSURL URLWithString:startPath];
         WKWebsiteDataStore* dataStore = [WKWebsiteDataStore defaultDataStore];
         WKHTTPCookieStore* cookieStore = dataStore.httpCookieStore;
+        
         NSMutableURLRequest *request = [[NSMutableURLRequest alloc] init];
+        // create cookies for the requestUrl and merge them with the existing http header fields
+        NSArray *requestCookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookiesForURL:requestUrl];
+        NSDictionary * cookieHeaders = [NSHTTPCookie requestHeaderFieldsWithCookies:requestCookies];
+        NSMutableDictionary * allHTTPHeaderFields = [cookieHeaders mutableCopy];
+        [allHTTPHeaderFields addEntriesFromDictionary:urlSchemeTask.request.allHTTPHeaderFields];
+        // we're taking care of cookies
+        [request setHTTPShouldHandleCookies:NO];
+        
         [request setHTTPMethod:method];
         [request setURL:requestUrl];
         if (body) {
             [request setHTTPBody:body];
         }
-        [request setAllHTTPHeaderFields:header];
-        [request setHTTPShouldHandleCookies:YES];
+        [request setAllHTTPHeaderFields:allHTTPHeaderFields];
         [request setTimeoutInterval:1800];
         
         [[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
@@ -71,6 +80,7 @@
                         //running in background thread is necessary because setCookie otherwise fails
                         dispatch_async(dispatch_get_main_queue(), ^(void){
                             [cookieStore setCookie:c completionHandler:nil];
+                            NSLog(@"set cookie %@:%@:%@", c.domain, c.name, c.value);
                         });
                     });
                 };
@@ -103,19 +113,129 @@
     [self.stoppedTasks addObject:urlSchemeTask];
 }
 
-- (void) clearCookie:(CDVInvokedUrlCommand*)command {
-    CDVPluginResult* pluginResult = nil;
+- (void)deleteCookie:(CDVInvokedUrlCommand *)command {
+    NSMutableDictionary* options = [command.arguments objectAtIndex:0];
+    
+    if ([options objectForKey:@"domain"] == nil || [options objectForKey:@"name"] == nil) {
+        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        return;
+    }
+    
+    @try {
+        NSHTTPCookieStorage *storage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+        for (NSHTTPCookie *cookie in storage.cookies) {
+            bool domainMatch = [cookie.domain isEqualToString: [options objectForKey:@"domain"]];
+            bool nameMatch =[cookie.name isEqualToString: [options objectForKey:@"name"]];
+            
+            if (domainMatch && nameMatch && (([options objectForKey:@"path"] != nil && [cookie.path isEqualToString: [options objectForKey:@"path"]]) || [options objectForKey:@"path"] == nil)) {
+                NSLog(@"deleteCookie(): removed cookie %@:%@:%@ from sharedHTTPCookieStorage", cookie.domain, cookie.name, cookie.value);
+                [storage deleteCookie:cookie];
+            }
+        }
+        
+        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }
+    @catch (NSException *exception) {
+        NSLog(@"WebViewProxy deleteCookie() exception: %@", exception.debugDescription);
+        
+        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:exception.reason];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }
+    
+}
 
+- (void)setCookie:(CDVInvokedUrlCommand *)command {
+    @try {
+        WKWebsiteDataStore* dataStore = [WKWebsiteDataStore defaultDataStore];
+        WKHTTPCookieStore* cookieStore = dataStore.httpCookieStore;
+        
+        NSMutableDictionary* options = [command.arguments objectAtIndex:0];
+        
+        NSMutableDictionary *cookieProperties = [NSMutableDictionary dictionary];
+        if ([options objectForKey:@"comment"] != nil) [cookieProperties setObject:[options objectForKey:@"comment"] forKey:NSHTTPCookieComment];
+        if ([options objectForKey:@"commentUrl"] != nil)[cookieProperties setObject:[options objectForKey:@"commentUrl"] forKey:NSHTTPCookieCommentURL];
+        if ([options objectForKey:@"discard"] != nil) [cookieProperties setObject:[options objectForKey:@"discard"] forKey:NSHTTPCookieDiscard];
+        if ([options objectForKey:@"domain"] != nil) [cookieProperties setObject:[options objectForKey:@"domain"] forKey:NSHTTPCookieDomain];  // required
+        if ([options objectForKey:@"expires"] != nil) [cookieProperties setObject:[options objectForKey:@"expires"] forKey:NSHTTPCookieExpires];
+        if ([options objectForKey:@"maximumAge"] != nil) [cookieProperties setObject:[NSString stringWithFormat:@"%@",[options objectForKey:@"maximumAge"]]
+                                                                              forKey:NSHTTPCookieMaximumAge];
+        if ([options objectForKey:@"name"] != nil) [cookieProperties setObject:[options objectForKey:@"name"] forKey:NSHTTPCookieName];  // required
+        if ([options objectForKey:@"domain"] != nil) [cookieProperties setObject:[options objectForKey:@"domain"] forKey:NSHTTPCookieOriginURL];  // reuse required domain
+        if ([options objectForKey:@"path"] != nil) [cookieProperties setObject:[options objectForKey:@"path"] forKey:NSHTTPCookiePath]; // required
+        if ([options objectForKey:@"port"] != nil) [cookieProperties setObject:[options objectForKey:@"port"] forKey:NSHTTPCookiePort];
+        if (@available(iOS 13.0, *)) {
+            if ([options objectForKey:@"sameSite"] != nil) [cookieProperties setObject:[options objectForKey:@"sameSite"] forKey:NSHTTPCookieSameSitePolicy];
+        }
+        if ([options objectForKey:@"secure"] != nil) [cookieProperties setObject:[options objectForKey:@"secure"] forKey:NSHTTPCookieSecure];
+        if ([options objectForKey:@"value"] != nil) [cookieProperties setObject:[options objectForKey:@"value"] forKey:NSHTTPCookieValue];  // required
+        if ([options objectForKey:@"version"] != nil) [cookieProperties setObject:[options objectForKey:@"version"] forKey:NSHTTPCookieVersion];
+        
+        NSHTTPCookie *cookie = [NSHTTPCookie cookieWithProperties:cookieProperties];
+        NSLog(@"setCookie(): %@:%@:%@", cookie.domain, cookie.name, cookie.value);
+        NSHTTPCookieStorage *storage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+        [storage setCookie:cookie];
+        
+        dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(void){
+            //running in background thread is necessary because setCookie otherwise fails
+            dispatch_async(dispatch_get_main_queue(), ^(void){
+                [cookieStore setCookie:cookie completionHandler:^{
+                    NSLog(@"set cookie %@:%@:%@", cookie.domain, cookie.name, cookie.value);
+                    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+                    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+                }];
+            });
+        });
+        
+        
+    }
+    @catch (NSException *exception) {
+        NSLog(@"WebViewProxy setCookie() exception: %@", exception.debugDescription);
+        
+        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:exception.reason];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }
+}
+
+- (void) clearCookies:(CDVInvokedUrlCommand*)command {
+    NSHTTPCookieStorage *storage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+    
+    if (storage.cookies.count > 0) {
+        for (NSHTTPCookie *cookie in storage.cookies) {
+            NSLog(@"clearCookies(): removed cookie %@:%@:%@", cookie.domain, cookie.name, cookie.value);
+            [storage deleteCookie:cookie];
+        }
+        NSLog(@"clearCookies(): all cookies cleared");
+        
+    } else {
+        NSLog(@"clearCookies(): no cookies found to be cleared");
+    }
+    
     WKWebsiteDataStore* dataStore = [WKWebsiteDataStore defaultDataStore];
     WKHTTPCookieStore* cookieStore = dataStore.httpCookieStore;
+    
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+    
     [cookieStore getAllCookies:^(NSArray<NSHTTPCookie *> * cookies) {
-        for (NSHTTPCookie* _c in cookies)
-        {
-            [cookieStore deleteCookie:_c completionHandler:nil];
-        };
+        if ([cookies count] == 0) {
+            NSLog(@"no cookies to be removed");
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        } else {
+            dispatch_group_t group = dispatch_group_create();
+            for (NSHTTPCookie* _c in cookies)
+            {
+                dispatch_group_enter(group);
+                [cookieStore deleteCookie:_c completionHandler:^{
+                    NSLog(@"removed cookie %@:%@:%@ from defaultDataStore", _c.domain, _c.name, _c.value);
+                    dispatch_group_leave(group);
+                }];
+            };
+            dispatch_group_notify(group, dispatch_get_main_queue(), ^{
+                [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+            });
+        }
     }];
-
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
 @end
