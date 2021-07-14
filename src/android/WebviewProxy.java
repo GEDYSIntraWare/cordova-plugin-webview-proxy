@@ -27,11 +27,6 @@ public class WebviewProxy extends CordovaPlugin  {
   }
 
   public boolean execute(String action, JSONArray args, CallbackContext callbackContext) {
-  
-    if (action.equals("getServerBasePath")) {
-      callbackContext.success("test");
-      return true;
-    }
     return false;
   }
 
@@ -39,9 +34,9 @@ public class WebviewProxy extends CordovaPlugin  {
     WebViewAssetLoader.PathHandler pathHandler = new WebViewAssetLoader.PathHandler() {
       @Override
       public WebResourceResponse handle(String path) {
-        if (path.startsWith("_https_proxy_")) {
+        if (path.startsWith("_https_proxy_") || path.startsWith("_http_proxy_")) {
           try {
-            URL url = new URL(path.replace("_https_proxy_", "https://"));
+            URL url = new URL(path.replace("_https_proxy_", "https://").replace("_http_proxy_", "http://"));
             HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
             try {
               InputStream in = new BufferedInputStream(urlConnection.getInputStream());
