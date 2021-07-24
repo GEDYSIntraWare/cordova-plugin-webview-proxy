@@ -8,8 +8,6 @@
 
 @property (nonatomic) NSMutableArray* stoppedTasks;
 
-- (void)clearCookie:(CDVInvokedUrlCommand*)command;
-
 @end
 
 @implementation WebviewProxy
@@ -29,14 +27,35 @@
     NSData * body = urlSchemeTask.request.HTTPBody;
     
     if ([stringToLoad hasPrefix:@"/_http_proxy_"]||[stringToLoad hasPrefix:@"/_https_proxy_"]) {
+        
+        
+        WKWebsiteDataStore* dataStore = [WKWebsiteDataStore defaultDataStore];
+            WKHTTPCookieStore* cookieStore = dataStore.httpCookieStore;
+            int secondsToKeep = 60*60*24*90;
+            [cookieStore getAllCookies:^(NSArray* cookies) {
+                NSHTTPCookie* cookie;
+                for(cookie in cookies) {
+                    NSMutableDictionary* cookieDict = [cookie.properties mutableCopy];
+                    [cookieDict removeObjectForKey:NSHTTPCookieDiscard]; // Remove the discard flag. If it is set (even to false), the expires date will NOT be kept.
+                    if (![cookieDict objectForKey:NSHTTPCookieExpires]) { // If the cookie doesn't have an expiration date, set it to the maximum value. Otherwise, keep the existing value.
+                        [cookieDict setObject:[NSDate dateWithTimeIntervalSinceNow:secondsToKeep] forKey:NSHTTPCookieExpires]; // Expires in 90 days. Only applies to version 0 cookies (rare).
+                    }
+                    if (![cookieDict objectForKey:NSHTTPCookieMaximumAge]) { // If the cookie doesn't have a max age, set it to the maximum value. Otherwise, keep the existing value.
+                        [cookieDict setObject:[NSString stringWithFormat:@"%d",secondsToKeep] forKey:NSHTTPCookieMaximumAge]; // Expires in 90 days. Only applies to version 1 cookies.
+                    }
+                    NSHTTPCookie* newCookie = [NSHTTPCookie cookieWithProperties:cookieDict];
+                    [[NSHTTPCookieStorage sharedHTTPCookieStorage] setCookie:newCookie];
+                    
+                }
+            }];
+        
+        
         if(url.query) {
             [stringToLoad appendString:@"?"];
             [stringToLoad appendString:url.query];
         }                startPath = [stringToLoad stringByReplacingOccurrencesOfString:@"/_http_proxy_" withString:@"http://"];
         startPath = [startPath stringByReplacingOccurrencesOfString:@"/_https_proxy_" withString:@"https://"];
         NSURL * requestUrl = [NSURL URLWithString:startPath];
-        WKWebsiteDataStore* dataStore = [WKWebsiteDataStore defaultDataStore];
-        WKHTTPCookieStore* cookieStore = dataStore.httpCookieStore;
         NSMutableURLRequest *request = [[NSMutableURLRequest alloc] init];
         [request setHTTPMethod:method];
         [request setURL:requestUrl];
@@ -101,21 +120,6 @@
 - (void) stopSchemeTask: (id <WKURLSchemeTask>)urlSchemeTask {
     NSLog(@"Stop WevViewProxy %@", urlSchemeTask.debugDescription);
     [self.stoppedTasks addObject:urlSchemeTask];
-}
-
-- (void) clearCookie:(CDVInvokedUrlCommand*)command {
-    CDVPluginResult* pluginResult = nil;
-
-    WKWebsiteDataStore* dataStore = [WKWebsiteDataStore defaultDataStore];
-    WKHTTPCookieStore* cookieStore = dataStore.httpCookieStore;
-    [cookieStore getAllCookies:^(NSArray<NSHTTPCookie *> * cookies) {
-        for (NSHTTPCookie* _c in cookies)
-        {
-            [cookieStore deleteCookie:_c completionHandler:nil];
-        };
-    }];
-
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
 @end
