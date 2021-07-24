@@ -20,7 +20,6 @@
 }
 
 - (BOOL) overrideSchemeTask: (id <WKURLSchemeTask>)urlSchemeTask {
-    NSString * startPath = @"";
     NSURL * url = urlSchemeTask.request.URL;
     NSDictionary * header = urlSchemeTask.request.allHTTPHeaderFields;
     NSMutableString * stringToLoad = [NSMutableString string];
@@ -28,70 +27,86 @@
     NSString * method = urlSchemeTask.request.HTTPMethod;
     NSData * body = urlSchemeTask.request.HTTPBody;
     
+    // Request should be handled by this plugin if the url contains the proxy path
     if ([stringToLoad hasPrefix:@"/_http_proxy_"]||[stringToLoad hasPrefix:@"/_https_proxy_"]) {
-        if(url.query) {
-            [stringToLoad appendString:@"?"];
-            [stringToLoad appendString:url.query];
-        }                startPath = [stringToLoad stringByReplacingOccurrencesOfString:@"/_http_proxy_" withString:@"http://"];
-        startPath = [startPath stringByReplacingOccurrencesOfString:@"/_https_proxy_" withString:@"https://"];
-        NSURL * requestUrl = [NSURL URLWithString:startPath];
+        // Firt sync all cookies from the WKHTTPCookieStore to the NSHTTPCookieStorage..
+        // .. to solve make cookies set in the main or IAB webview available for proxy requests
         WKWebsiteDataStore* dataStore = [WKWebsiteDataStore defaultDataStore];
         WKHTTPCookieStore* cookieStore = dataStore.httpCookieStore;
-        NSMutableURLRequest *request = [[NSMutableURLRequest alloc] init];
-        [request setHTTPMethod:method];
-        [request setURL:requestUrl];
-        if (body) {
-            [request setHTTPBody:body];
-        }
-        [request setAllHTTPHeaderFields:header];
-        [request setHTTPShouldHandleCookies:YES];
-        [request setTimeoutInterval:1800];
-        
-        [[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-            if(error && (self.stoppedTasks == nil || ![self.stoppedTasks containsObject:urlSchemeTask])) {
-                @try {
-                    NSLog(@"WebviewProxy error: %@", error);
-                    [urlSchemeTask didFailWithError:error];
-                    return;
-                } @catch (NSException *exception) {
-                    NSLog(@"WebViewProxy send error exception: %@", exception.debugDescription);
-                }
-            }
-            
-            // set cookies to WKWebView
-            NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse*)response;
-            if(httpResponse) {
-                NSArray* cookies = [NSHTTPCookie cookiesWithResponseHeaderFields:[httpResponse allHeaderFields] forURL:response.URL];
-                [[NSHTTPCookieStorage sharedHTTPCookieStorage] setCookies:cookies forURL:httpResponse.URL mainDocumentURL:nil];
-                cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookies];
+        [cookieStore getAllCookies:^(NSArray* cookies) {
+            NSHTTPCookie* cookie;
+            for(cookie in cookies) {
+                NSMutableDictionary* cookieDict = [cookie.properties mutableCopy];
+                [cookieDict removeObjectForKey:NSHTTPCookieDiscard]; // Remove the discard flag. If it is set (even to false), the expires date will NOT be kept.
+                NSHTTPCookie* newCookie = [NSHTTPCookie cookieWithProperties:cookieDict];
+                [[NSHTTPCookieStorage sharedHTTPCookieStorage] setCookie:newCookie];
                 
-                for (NSHTTPCookie* c in cookies)
-                {
-                    dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(void){
-                        //running in background thread is necessary because setCookie otherwise fails
-                        dispatch_async(dispatch_get_main_queue(), ^(void){
-                            [cookieStore setCookie:c completionHandler:nil];
-                        });
-                    });
-                };
             }
             
-            // Do not use urlSchemeTask if it has been closed in stopURLSchemeTask. Otherwise the app will crash.
-            @try {
-                if(self.stoppedTasks == nil || ![self.stoppedTasks containsObject:urlSchemeTask]) {
-                    [urlSchemeTask didReceiveResponse:response];
-                    [urlSchemeTask didReceiveData:data];
-                    [urlSchemeTask didFinish];
-                } else {
-                    NSLog(@"Task stopped %@", startPath);
-                }
-            } @catch (NSException *exception) {
-                NSLog(@"WebViewProxy send response exception: %@", exception.debugDescription);
-            } @finally {
-                // Cleanup
-                [self.stoppedTasks removeObject:urlSchemeTask];
+            NSString * startPath = @"";
+            if(url.query) {
+                [stringToLoad appendString:@"?"];
+                [stringToLoad appendString:url.query];
+            }                startPath = [stringToLoad stringByReplacingOccurrencesOfString:@"/_http_proxy_" withString:@"http://"];
+            startPath = [startPath stringByReplacingOccurrencesOfString:@"/_https_proxy_" withString:@"https://"];
+            NSURL * requestUrl = [NSURL URLWithString:startPath];
+            NSMutableURLRequest *request = [[NSMutableURLRequest alloc] init];
+            [request setHTTPMethod:method];
+            [request setURL:requestUrl];
+            if (body) {
+                [request setHTTPBody:body];
             }
-        }] resume];
+            [request setAllHTTPHeaderFields:header];
+            [request setHTTPShouldHandleCookies:YES];
+            [request setTimeoutInterval:1800];
+            
+            [[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+                if(error && (self.stoppedTasks == nil || ![self.stoppedTasks containsObject:urlSchemeTask])) {
+                    @try {
+                        NSLog(@"WebviewProxy error: %@", error);
+                        [urlSchemeTask didFailWithError:error];
+                        return;
+                    } @catch (NSException *exception) {
+                        NSLog(@"WebViewProxy send error exception: %@", exception.debugDescription);
+                    }
+                }
+                
+                // Copy cookies from the native requests cookie storage to the webviews cookie storage
+                NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse*)response;
+                if(httpResponse) {
+                    NSArray* cookies = [NSHTTPCookie cookiesWithResponseHeaderFields:[httpResponse allHeaderFields] forURL:response.URL];
+                    [[NSHTTPCookieStorage sharedHTTPCookieStorage] setCookies:cookies forURL:httpResponse.URL mainDocumentURL:nil];
+                    cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookies];
+                    
+                    for (NSHTTPCookie* c in cookies)
+                    {
+                        dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(void){
+                            //running in background thread is necessary because setCookie otherwise fails
+                            dispatch_async(dispatch_get_main_queue(), ^(void){
+                                [cookieStore setCookie:c completionHandler:nil];
+                            });
+                        });
+                    };
+                }
+                
+                // Do not use urlSchemeTask if it has been closed in stopURLSchemeTask. Otherwise the app will crash.
+                @try {
+                    if(self.stoppedTasks == nil || ![self.stoppedTasks containsObject:urlSchemeTask]) {
+                        [urlSchemeTask didReceiveResponse:response];
+                        [urlSchemeTask didReceiveData:data];
+                        [urlSchemeTask didFinish];
+                    } else {
+                        NSLog(@"Task stopped %@", startPath);
+                    }
+                } @catch (NSException *exception) {
+                    NSLog(@"WebViewProxy send response exception: %@", exception.debugDescription);
+                } @finally {
+                    // Cleanup
+                    [self.stoppedTasks removeObject:urlSchemeTask];
+                }
+            }] resume];
+        }];
+        
         return  YES;
     }
     
