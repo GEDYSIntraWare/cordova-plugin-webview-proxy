@@ -17,6 +17,16 @@ console.debug(response);
 window.WebviewProxy.clearCookie();
 ```
 
-**Make sure you are using a custom scheme with your iOS platform**
+# Make sure you are using a custom scheme with your iOS platform
 
 This plugin uses the WKURLSchemeHandler provided by WKWebView. It requires the latest version of cordova-ios.
+
+**You enable the custom scheme by setting these preferences in config.xml**
+
+```xml
+<preference name="scheme" value="app" />
+<preference name="hostname" value="testapp"/>
+```
+# Testing this plugin
+
+[This test app](https://github.com/NiklasMerz/cors-cookie-proxy-test-app) with custom pages and a simple backend is helpful for testing and developing this plugin.
