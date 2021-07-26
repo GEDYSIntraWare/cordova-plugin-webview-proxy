@@ -29,8 +29,8 @@
     
     // Request should be handled by this plugin if the url contains the proxy path
     if ([stringToLoad hasPrefix:@"/_http_proxy_"]||[stringToLoad hasPrefix:@"/_https_proxy_"]) {
-        // Firt sync all cookies from the WKHTTPCookieStore to the NSHTTPCookieStorage..
-        // .. to solve make cookies set in the main or IAB webview available for proxy requests
+        // First sync all cookies from the WKHTTPCookieStore to the NSHTTPCookieStorage..
+        // .. to make cookies from main or IAB webview available for proxy requests
         WKWebsiteDataStore* dataStore = [WKWebsiteDataStore defaultDataStore];
         WKHTTPCookieStore* cookieStore = dataStore.httpCookieStore;
         [cookieStore getAllCookies:^(NSArray* cookies) {
@@ -71,7 +71,7 @@
                     }
                 }
                 
-                // Copy cookies from the native requests cookie storage to the webviews cookie storage
+                // Copy cookies from the native requests cookie storage to other cookie storage to make them available to the webviews
                 NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse*)response;
                 if(httpResponse) {
                     NSArray* cookies = [NSHTTPCookie cookiesWithResponseHeaderFields:[httpResponse allHeaderFields] forURL:response.URL];
