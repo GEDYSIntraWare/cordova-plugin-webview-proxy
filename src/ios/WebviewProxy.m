@@ -22,6 +22,7 @@
 - (BOOL) overrideSchemeTask: (id <WKURLSchemeTask>)urlSchemeTask {
     NSURL * url = urlSchemeTask.request.URL;
     NSDictionary * header = urlSchemeTask.request.allHTTPHeaderFields;
+    // In Versions below iOS 16 the appendString method seems to encode the string in a way that works for the request URL
     NSMutableString * stringToLoad = [NSMutableString string];
     [stringToLoad appendString:url.path];
     NSString * method = urlSchemeTask.request.HTTPMethod;
@@ -47,8 +48,13 @@
             if(url.query) {
                 [stringToLoad appendString:@"?"];
                 [stringToLoad appendString:url.query];
-            }                startPath = [stringToLoad stringByReplacingOccurrencesOfString:@"/_http_proxy_" withString:@"http://"];
+            }                
+            startPath = [stringToLoad stringByReplacingOccurrencesOfString:@"/_http_proxy_" withString:@"http://"];
             startPath = [startPath stringByReplacingOccurrencesOfString:@"/_https_proxy_" withString:@"https://"];
+            // Since iOS 16 the url is not automatically encoded anymore.
+            // Here it is decoded and encoded again, so it is always encoded as needed regardless of the iOS Version.
+            startPath = [startPath stringByRemovingPercentEncoding];
+            startPath = [startPath stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
             NSURL * requestUrl = [NSURL URLWithString:startPath];
             NSMutableURLRequest *request = [[NSMutableURLRequest alloc] init];
             [request setHTTPMethod:method];
