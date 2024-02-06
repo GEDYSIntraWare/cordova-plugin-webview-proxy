@@ -28,6 +28,11 @@
     NSString * method = urlSchemeTask.request.HTTPMethod;
     NSData * body = urlSchemeTask.request.HTTPBody;
     
+    // Add '/' for preventing status code 404 on xas requests. 
+    if([stringToLoad hasSuffix:@"xas"]){
+        [stringToLoad appendString:@"/"];
+    }
+    
     // Request should be handled by this plugin if the url contains the proxy path
     if ([stringToLoad hasPrefix:@"/_http_proxy_"]||[stringToLoad hasPrefix:@"/_https_proxy_"]) {
         // First sync all cookies from the WKHTTPCookieStore to the NSHTTPCookieStorage..
